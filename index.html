@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Horas · Control mensual</title>
+
+<meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f4f8" media="(prefers-color-scheme: light)">
+<meta name="description" content="Control de horas y cálculo de lo que hay que cobrar cada mes. Los datos se guardan dentro del móvil.">
+
+<!-- PWA en iOS -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Horas">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ================= CABECERA ================= -->
+  <header class="topbar">
+    <div class="topbar-mes">
+      <button class="btn-icono" id="mes-anterior" aria-label="Mes anterior">‹</button>
+      <div class="mes-selector">
+        <input type="month" id="mes-input" aria-label="Seleccionar mes">
+        <span id="mes-etiqueta">—</span>
+      </div>
+      <button class="btn-icono" id="mes-siguiente" aria-label="Mes siguiente">›</button>
+    </div>
+  </header>
+
+  <!-- ================= RESUMEN FIJO ================= -->
+  <section class="resumen-fijo" id="resumen-fijo">
+    <div class="tiles">
+      <div class="tile">
+        <span class="tile-label">Horas</span>
+        <span class="tile-valor" id="t-total">0</span>
+        <span class="tile-unit">h</span>
+      </div>
+      <div class="tile">
+        <span class="tile-label">Extras</span>
+        <span class="tile-valor" id="t-extras">0</span>
+        <span class="tile-unit">h</span>
+      </div>
+      <div class="tile tile-accent">
+        <span class="tile-label">Bruto</span>
+        <span class="tile-valor" id="t-bruto">0</span>
+        <span class="tile-unit">€</span>
+      </div>
+      <div class="tile tile-neto">
+        <span class="tile-label">Neto</span>
+        <span class="tile-valor" id="t-neto">0</span>
+        <span class="tile-unit">€</span>
+      </div>
+    </div>
+    <p class="resumen-linea" id="t-linea">—</p>
+  </section>
+
+  <!-- ================= VISTA MES ================= -->
+  <main class="vista" id="vista-mes">
+    <div class="recordatorio" id="recordatorio" hidden>
+      <span id="recordatorio-texto">—</span>
+      <button class="btn-mini" id="btn-copia-ya">Hacer copia</button>
+    </div>
+
+    <div class="card card-fichaje" id="card-fichaje" hidden>
+      <div class="fichaje-cab">
+        <span class="fichaje-label" id="fichaje-hoy-label">Fichaje de hoy</span>
+        <span class="fichaje-regla" id="fichaje-regla">redondeo a 15 min</span>
+      </div>
+      <div class="fichaje-botones">
+        <button class="btn-fichaje" id="btn-entrada-hoy" type="button">
+          <span>Entrada</span><strong id="hora-entrada">—</strong><em>ahora</em>
+        </button>
+        <button class="btn-fichaje" id="btn-salida-hoy" type="button">
+          <span>Salida</span><strong id="hora-salida">—</strong><em>ahora</em>
+        </button>
+      </div>
+      <p class="fichaje-nota" id="fichaje-nota"></p>
+    </div>
+
+    <div class="leyenda">
+      <span><b>Escribe las horas</b> del día</span>
+      <span class="leyenda-sep">·</span>
+      <span>toca la fila para ver el detalle</span>
+    </div>
+    <div class="lista-dias" id="lista-dias"></div>
+    <div class="acciones-mes">
+      <button class="btn btn-secundario" id="btn-rellenar">Restaurar base y umbral de todo el mes según el tipo de día</button>
+      <button class="btn btn-secundario" id="btn-rellenar-horas">Poner las mismas horas en los días vacíos</button>
+      <button class="btn btn-peligro" id="btn-borrar-mes">Vaciar este mes</button>
+    </div>
+  </main>
+
+  <!-- ================= VISTA RESUMEN ================= -->
+  <main class="vista" id="vista-resumen" hidden>
+    <div class="card">
+      <h2 class="card-titulo">Hoja de cálculo</h2>
+      <table class="hoja">
+        <tbody>
+          <tr><th>HORAS TOTALES</th><td id="r-total">—</td><td class="hoja-euros" id="r-total-e">—</td></tr>
+          <tr class="hoja-menor"><th>Descansos (comida)</th><td id="r-descanso">—</td><td class="hoja-euros">—</td></tr>
+          <tr class="hoja-menor"><th>Horas efectivas</th><td id="r-efectivas">—</td><td class="hoja-euros">—</td></tr>
+          <tr class="hoja-menor"><th>Días de vacaciones</th><td id="r-vacaciones">—</td><td class="hoja-euros">—</td></tr>
+          <tr><th>HORAS EXTRAS <span class="muted" id="r-tarifa1">(9,45 €/h)</span></th><td id="r-extras">—</td><td class="hoja-euros" id="r-extras-e">—</td></tr>
+          <tr><th>HORAS EXTRAS FESTIVOS Y DOMINGOS <span class="muted" id="r-tarifa2">(10,74 €/h)</span></th><td id="r-festivos">—</td><td class="hoja-euros" id="r-festivos-e">—</td></tr>
+          <tr><th>SUELDO BRUTO FIJO</th><td>—</td><td class="hoja-euros" id="r-sueldo">—</td></tr>
+          <tr class="hoja-total"><th>TOTAL BRUTO</th><td>—</td><td class="hoja-euros" id="r-bruto">—</td></tr>
+          <tr><th>IRPF <span id="r-irpf-pct" class="muted">(20 %)</span></th><td>—</td><td class="hoja-euros negativo" id="r-irpf">—</td></tr>
+          <tr class="hoja-neto"><th>TOTAL NETO</th><td>—</td><td class="hoja-euros" id="r-neto">—</td></tr>
+        </tbody>
+      </table>
+      <label class="switch">
+        <input type="checkbox" id="chk-exactos">
+        <span>Mostrar cifras exactas (4 decimales)</span>
+      </label>
+    </div>
+
+    <div class="card">
+      <h2 class="card-titulo">Resumen por semana</h2>
+      <table class="hoja">
+        <thead><tr><th>Semana</th><th>Horas</th><th>Extras</th><th>Euros extras</th></tr></thead>
+        <tbody id="r-semanas"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2 class="card-titulo">Días con más horas extra</h2>
+      <table class="hoja">
+        <thead><tr><th>Día</th><th>Horas</th><th>Extra</th></tr></thead>
+        <tbody id="r-top"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- ================= VISTA AJUSTES ================= -->
+  <main class="vista" id="vista-ajustes" hidden>
+    <div class="card">
+      <h2 class="card-titulo">Cálculo</h2>
+      <div class="campo">
+        <label for="a-sueldo">Sueldo bruto fijo mensual</label>
+        <div class="input-monedero"><input type="text" id="a-sueldo" inputmode="decimal"><span>€</span></div>
+      </div>
+      <div class="campo">
+        <label for="a-tarifa">Tarifa de horas extra</label>
+        <div class="input-monedero"><input type="text" id="a-tarifa" inputmode="decimal"><span>€/h</span></div>
+      </div>
+      <div class="campo">
+        <label for="a-tarifa-manual">Tarifa de domingos y festivos</label>
+        <div class="input-monedero"><input type="text" id="a-tarifa-manual" inputmode="decimal"><span>€/h</span></div>
+      </div>
+      <div class="campo">
+        <label for="a-irpf">IRPF</label>
+        <div class="input-monedero"><input type="text" id="a-irpf" inputmode="decimal"><span>%</span></div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="a-negativos">
+        <span>Permitir horas extra negativas (igual que el Excel)</span>
+      </label>
+    </div>
+
+    <div class="card">
+      <h2 class="card-titulo">Fichaje</h2>
+      <p class="card-nota">Tus marcas están en intervalos de 15 minutos. Si el reloj se retrasa unos minutos, la marca se guarda en el siguiente múltiplo de la rejilla (07:44 → 07:45, 07:45 → 07:45, 07:46 → 08:00).</p>
+      <div class="campo-doble">
+        <div class="campo">
+          <label for="a-paso">Intervalo entre marcas</label>
+          <div class="input-monedero"><input type="text" id="a-paso" inputmode="numeric"><span>min</span></div>
+        </div>
+        <div class="campo">
+          <label for="a-regla">Redondeo</label>
+          <select id="a-regla" class="select"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="card-titulo">Tipos de día</h2>
+      <p class="card-nota">Base = jornada del día · Umbral = horas a partir de las cuales se generan horas extra · Descanso = parada para comer, que se resta antes de mirar el umbral.</p>
+      <table class="hoja tipos">
+        <thead><tr><th>Tipo</th><th>Base</th><th>Umbral</th><th>Descanso</th></tr></thead>
+        <tbody id="a-tipos"></tbody>
+      </table>
+      <button class="btn btn-secundario" id="btn-aplicar-tipos">Aplicar estos valores a los días de <span id="mes-aplicar">—</span></button>
+    </div>
+
+    <div class="card">
+      <h2 class="card-titulo">Copia de seguridad</h2>
+      <p class="card-nota">Los datos viven solo en este dispositivo. Haz una copia de vez en cuando y guárdala donde quieras: Google Drive, iCloud, Archivos, WhatsApp o por correo.</p>
+      <div class="botones-fila">
+        <button class="btn btn-secundario" id="btn-exportar">Guardar copia</button>
+        <button class="btn btn-secundario" id="btn-importar">Restaurar copia</button>
+      </div>
+      <p class="card-nota" id="info-copia">—</p>
+      <input type="file" id="input-importar" hidden>
+      <button class="btn btn-secundario" id="btn-csv">Exportar el mes en CSV</button>
+    </div>
+
+    <div class="card">
+      <h2 class="card-titulo">Instalar en el iPhone</h2>
+      <p class="card-nota">La app es una PWA: se instala en la pantalla de inicio, se abre sin barra de navegador, funciona sin cobertura y guarda los datos dentro del móvil.</p>
+      <ol class="pasos">
+        <li>Abre la dirección <b>https://…</b> de la app en Safari.</li>
+        <li>Pulsa el botón <b>Compartir</b> (el cuadro con la flecha hacia arriba).</li>
+        <li>Elige <b>Añadir a pantalla de inicio</b>.</li>
+        <li>Ábrela ya desde su icono: funciona como una app normal, incluso sin cobertura.</li>
+      </ol>
+      <ul class="estado" id="estado-install">
+        <li><span>Conexión segura (https)</span><b id="st-seguro">—</b></li>
+        <li><span>Modo sin conexión (service worker)</span><b id="st-sw">—</b></li>
+        <li><span>Instalada como app</span><b id="st-standalone">—</b></li>
+        <li><span>Espacio usado en el dispositivo</span><b id="st-espacio">—</b></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2 class="card-titulo">Actualizaciones</h2>
+      <p class="card-nota">La app se actualiza sola: cuando publico una versión nueva, al abrirla se descarga y se cambia sin que tengas que hacer nada. Tus datos nunca se tocan.</p>
+      <div class="botones-fila">
+        <button class="btn btn-secundario" id="btn-actualizar">Buscar actualizaciones</button>
+      </div>
+      <ul class="estado">
+        <li><span>Versión instalada</span><b id="st-version">—</b></li>
+        <li><span>Última comprobación</span><b id="st-comprobacion">—</b></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2 class="card-titulo">Zona sensible</h2>
+      <button class="btn btn-peligro" id="btn-borrar-todo">Borrar todos los datos del dispositivo</button>
+      <p class="card-nota" id="info-dispositivo">—</p>
+    </div>
+  </main>
+
+  <!-- ================= NAVEGACIÓN ================= -->
+  <nav class="tabbar">
+    <button class="tab activa" data-vista="mes"><span class="tab-icono" aria-hidden="true">▦</span>Mes</button>
+    <button class="tab" data-vista="resumen"><span class="tab-icono" aria-hidden="true">≡</span>Resumen</button>
+    <button class="tab" data-vista="ajustes"><span class="tab-icono" aria-hidden="true">⚙</span>Ajustes</button>
+  </nav>
+</div>
+
+<!-- ================= FICHA DE DÍA ================= -->
+<div class="ficha-fondo" id="ficha-fondo" hidden></div>
+<section class="ficha" id="ficha" hidden aria-modal="true" role="dialog">
+  <div class="ficha-cabecera">
+    <button class="btn-icono" id="ficha-cerrar" aria-label="Cerrar">✕</button>
+    <h2 id="ficha-titulo">Día</h2>
+    <span class="ficha-hueco"></span>
+  </div>
+  <div class="ficha-cuerpo">
+    <div class="campo">
+      <label>Tipo de día</label>
+      <div class="segmentos" id="ficha-tipos"></div>
+    </div>
+    <div class="campo-doble">
+      <div class="campo">
+        <label for="ficha-entrada">Fichaje entrada</label>
+        <input type="time" id="ficha-entrada" step="60" class="input-hora">
+      </div>
+      <div class="campo">
+        <label for="ficha-salida">Fichaje salida</label>
+        <input type="time" id="ficha-salida" step="60" class="input-hora">
+      </div>
+    </div>
+    <p class="ficha-regla" id="ficha-regla"></p>
+    <div class="botones-fila">
+      <button class="btn btn-secundario" id="btn-ahora-entrada">Entrada: ahora</button>
+      <button class="btn btn-secundario" id="btn-ahora-salida">Salida: ahora</button>
+    </div>
+    <div class="campo-doble">
+      <div class="campo">
+        <label for="ficha-horas">Horas trabajadas</label>
+        <div class="input-monedero"><input type="text" id="ficha-horas" inputmode="decimal"><span>h</span></div>
+      </div>
+      <div class="campo">
+        <label for="ficha-descanso">Descanso (comer)</label>
+        <div class="input-monedero"><input type="text" id="ficha-descanso" inputmode="decimal" placeholder="1:30"><span>h</span></div>
+      </div>
+    </div>
+    <p class="aviso-fichaje" id="ficha-descuadre" hidden></p>
+    <p class="aviso-fichaje vacaciones" id="ficha-vacaciones" hidden>
+      Día de vacaciones: no se trabajan horas ni se generan horas extra.
+      El sueldo fijo del mes (1.655,70 €) no cambia.
+    </p>
+    <div class="campo-doble">
+      <div class="campo">
+        <label for="ficha-base">Jornada base</label>
+        <div class="input-monedero"><input type="text" id="ficha-base" inputmode="decimal"><span>h</span></div>
+      </div>
+      <div class="campo">
+        <label for="ficha-umbral">Umbral extra</label>
+        <div class="input-monedero"><input type="text" id="ficha-umbral" inputmode="decimal"><span>h</span></div>
+      </div>
+    </div>
+    <div class="campo">
+      <label for="ficha-nota">Nota</label>
+      <input type="text" id="ficha-nota" placeholder="opcional">
+    </div>
+    <div class="ficha-total">
+      <span>Horas extra de este día</span>
+      <strong id="ficha-extra">—</strong>
+    </div>
+    <p class="ficha-detalle" id="ficha-extra-detalle"></p>
+    <div class="botones-fila">
+      <button class="btn btn-secundario" id="btn-copiar-anterior">Copiar del día anterior</button>
+      <button class="btn btn-secundario" id="btn-copiar-dia">Copiar a todos los días del mes</button>
+    </div>
+  </div>
+</section>
+
+<div class="aviso" id="aviso" hidden></div>
+
+<!-- Aviso para instalar la app en la pantalla de inicio (solo iOS en navegador) -->
+<div class="instalar" id="instalar" hidden>
+  <div class="instalar-texto">
+    <strong>Instálala en el iPhone</strong>
+    <span>Pulsa <b>Compartir</b> → <b>Añadir a pantalla de inicio</b>. Así funciona
+      sin conexión y los datos se quedan en el móvil.</span>
+  </div>
+  <button class="instalar-cerrar" id="instalar-cerrar" aria-label="Cerrar">✕</button>
+</div>
+
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>
